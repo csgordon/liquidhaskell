@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.PredType (
   , wiredSortedSyms
   ) where
 
+import Class
 -- import PprCore          (pprCoreExpr)
 import Id               (idType)
 import CoreSyn  hiding (collectArgs)
@@ -279,8 +280,13 @@ substRCon msg (_, RPoly ss (RApp c1 ts1 rs1 r1)) (RApp c2 ts2 rs2 _) πs r2'
 
 substRCon msg su t _ _        = errorstar $ msg ++ " substRCon " ++ showpp (su, t)
 
+substPredP :: (Reftable s, PPrint s) =>
+                             (PVar (RType Class RTyCon RTyVar ()),
+                              Ref RSort RReft SpecType)
+                             -> Ref RSort t (RType Class RTyCon RTyVar (UReft Reft))
+                             -> Ref RSort s SpecType
 substPredP su@(p, RPoly ss tt) (RPoly s t)       
-  = RPoly ss' $ substPred "substPredP" su t
+  = traceShow ("HEREE?" ++ show su ++ "\n" ++  show (t) ) $ RPoly ss' $ substPred "substPredP" su t
  where ss' = if isPredInType p t then (ss ++ s) else s
 
 substPredP _  (RMono _ _)       
@@ -317,6 +323,7 @@ isPredInURef p (U _ (Pr ps)) = any (uPVar p ==) ps
 meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
 meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
 
+
 meetListWithPSub ::  (Reftable r, PPrint t) => [(Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
@@ -329,9 +336,9 @@ meetListWithPSub ss r1 r2 π
 
 meetListWithPSubRef ss (RPoly s1 r1) (RPoly s2 r2) π
   | all (\(_, x, EVar y) -> x == y) (pargs π)
-  = RPoly s1 $ r2 `meet` r1      
+  = traceShow "EITHER HERE" $ RPoly s1 $ r2 `meet` r1      
   | all (\(_, x, EVar y) -> x /= y) (pargs π)
-  = RPoly s2 $ r2 `meet` (subst su r1)
+  = traceShow "OR HERE"$  RPoly s2 $ r2 `meet` (subst su r1)
   | otherwise
   = errorstar $ "PredType.meetListWithPSubRef partial application to " ++ showpp π
   where su  = mkSubst [(x, y) | (x, (_, _, y)) <- zip (fst <$> s1) (pargs π)]
